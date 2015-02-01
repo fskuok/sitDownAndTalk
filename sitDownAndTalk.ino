@@ -1,87 +1,153 @@
 //pins
 
-int RPin = A0;
-int GPin = D0;
-int BPin = D1;
+
+int redPin = A0;
+int greenPin = D0;
+int bluePin = D1;
 int frsPin = A1;
 
-//
+
 bool waiting; //is there a person sit down?
 bool connected; //is phone call made?
 bool sitDownPublished;
 
+//0: nothing happends
+//1: somebody sitdown on this chair, wait for another chair
+//2: somebody sitdown on other chair, wait for people
+//4: connection build
+int phase = 0;
+
+
+char selfId[25];
+char targetId[25];
+char connectedId[25];
+
 int frsThreshold = 1000;
 
 void setup(){
-  setPinMode(RPin, OUTPUT);
-  setPinMode(GPin, OUTPUT);
-  setPinMode(BPin, OUTPUT);
-  setPinMode(frsPin, INPUT);
-  setLEDColor("red");
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
+  pinMode(frsPin, INPUT);
+  setLEDColor('red');
+  Spark.variable("phase", &phase, INT);
+  Spark.subscribe("someone-sit-down", sitDownEventHandler);
+  Spark.subscribe("connection-request", connectionRequestHandler);
+  Spark.subscribe("quitConnection", quitConnectionHandler);
+  Spark.deviceID().toCharArray(selfId, 25);
 }
 
 void loop(){
-  //if somebody is sitting on the chair
 
-  if(isSat()){
-    //if just sit down in this loop
-    if(!waiting){
-      Spark.publish("someone-sit-down", Spark.deviceID());
+  switch(phase){
+    case 0://0: nothing happends
 
-    //if sat down before this loop
-    }else{
-      if(!connected){
-        
+      if(isSat()){
+        Spark.publish("someone-sit-down", selfId);
+        phase = 1;
       }
-    }
 
-  //if nobody is sitting on the chair
-  }else{
+      break;
 
-    //if just quit from connection
-    if(connected){
+    case 1://1: waiting for another chair
 
-    //if just quit from waiting
-    }else if(waiting){
-      initValues();
-    }
+      //if the person leaves
+      if(!isSat()){
+        phase = 0;
+        //here should publish an event
+      }
+
+      break;
+
+    case 2://2: waiting for people
+
+
+      //a person sit down
+      if(isSat()){
+        phase = 4;
+        Spark.publish("connection-request", targetId);
+      }
+
+      break;
+
+    case 4://4: connection build
+      break;
   }
 
-  //change light colors
-  if(!waiting) setLEDColor("red"); //nobody sitting
-  if(waiting && !connected) setLEDColor("green"); //sat and waiting for connection
-  if(connected) setLEDColor("purple"); //sat and waiting for connection
-
-  delay(200);
+  setLEDColor(phase);
+  delay(100);
 }
 
-bool isSt(){
+void sitDownEventHandler(const char *event, const char *id){
+  char temp[25];
+  strcpy(temp, id);
+  //if this event come from this chair, ignore it
+  if(strcmp(temp,selfId) == 0){
+  //if this event from other chair
+  //
+  }else if(phase == 0){
+    strcpy(targetId, id);
+    phase = 2;
+  }else if(phase == 1){
+    makeConnection();
+    phase = 4;
+  }
+}
+
+void connectionRequestHandler(const char *event, const char *id){
+  char temp[25];
+  strcpy(temp, id);
+  //
+  if(strcmp(temp, selfId) != 0){
+    phase = 4;
+    makeConnection();
+  //if the request is not for this chair
+  //which means some other two chair connected
+  }else if(phase == 2){
+    phase = 0;
+  }
+}
+
+void quitConnectionHandler(const char *event, const char *id){
+  quitConnection();
+}
+
+bool isSat(){
   return analogRead(frsPin) > frsThreshold ? true : false;
 }
 
 //set color output for RGB LED
-void setLEDColor(String color){
+void setLEDColor(int phase){
   int r, g, b;
-  switch(color){
-    case "red":
+  switch(phase){
+    case 0:
       r = 0;
       g = 255;
       b = 255;
-    case "purple":
+      break;
+    case 2:
+      r = 0;
+      g = 255;
+      b = 255;
+      break;
+    case 1:
       r = 0;
       g = 255;
       b = 0;
-    case "blue":
+      break;
+    case 4:
       r = 255;
       g = 255;
       b = 255;
+      break;
   }
-  analogWrite(RPin, r);
-  analogWrite(GPin, g);
-  analogWrite(BPin, b);
+  analogWrite(redPin, r);
+  analogWrite(greenPin, g);
+  analogWrite(bluePin, b);
 }
 
-void makeConnection(const char *event, const char *data){
+
+void makeConnection(){
   connected = true;
 }
 
