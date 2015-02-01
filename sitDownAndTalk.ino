@@ -29,12 +29,15 @@ void setup(){
   pinMode(greenPin, OUTPUT);
   pinMode(bluePin, OUTPUT);
   pinMode(frsPin, INPUT);
-  setLEDColor('red');
+
   Spark.variable("phase", &phase, INT);
+  Spark.variable("selfId", &selfId, STRING);
   Spark.subscribe("someone-sit-down", sitDownEventHandler);
   Spark.subscribe("connection-request", connectionRequestHandler);
   Spark.subscribe("quitConnection", quitConnectionHandler);
   Spark.deviceID().toCharArray(selfId, 25);
+
+  initValues();
 }
 
 void loop(){
@@ -54,6 +57,7 @@ void loop(){
       //if the person leaves
       if(!isSat()){
         phase = 0;
+        initValues();
         //here should publish an event
       }
 
@@ -82,25 +86,24 @@ void sitDownEventHandler(const char *event, const char *id){
   char temp[25];
   strcpy(temp, id);
   //if this event come from this chair, ignore it
-  if(strcmp(temp,selfId) == 0){
+  if(strcmp(temp, selfId) == 0){
+
   //if this event from other chair
-  //
   }else if(phase == 0){
     strcpy(targetId, id);
     phase = 2;
-  }else if(phase == 1){
-    makeConnection();
-    phase = 4;
   }
 }
 
 void connectionRequestHandler(const char *event, const char *id){
   char temp[25];
   strcpy(temp, id);
-  //
-  if(strcmp(temp, selfId) != 0){
+
+  //if the request is for this chair
+  if(strcmp(temp, selfId) == 0){
     phase = 4;
     makeConnection();
+
   //if the request is not for this chair
   //which means some other two chair connected
   }else if(phase == 2){
@@ -137,7 +140,7 @@ void setLEDColor(int phase){
       break;
     case 4:
       r = 255;
-      g = 255;
+      g = 0;
       b = 255;
       break;
   }
