@@ -32,6 +32,7 @@ void setup(){
 
   Spark.variable("phase", &phase, INT);
   Spark.variable("selfId", &selfId, STRING);
+  Spark.variable("targetId", &targetId, STRING);
   Spark.subscribe("someone-sit-down", sitDownEventHandler);
   Spark.subscribe("connection-request", connectionRequestHandler);
   Spark.subscribe("quitConnection", quitConnectionHandler);
@@ -75,6 +76,10 @@ void loop(){
       break;
 
     case 4://4: connection build
+      if(!isSat()){
+        initValues();
+        phase = 0;
+      }
       break;
   }
 
@@ -129,9 +134,9 @@ void setLEDColor(int phase){
       b = 255;
       break;
     case 2:
-      r = 0;
+      r = 255;
       g = 255;
-      b = 255;
+      b = 0;
       break;
     case 1:
       r = 0;
